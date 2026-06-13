@@ -3,6 +3,7 @@ package com.example.tiny_computer
 import android.system.Os.setenv
 
 import android.content.Intent
+import android.view.KeyEvent
 import androidx.annotation.NonNull
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatDelegate
@@ -12,10 +13,12 @@ import io.flutter.plugin.common.MethodChannel
 
 
 class MainActivity: FlutterActivity() {
+    private var androidChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "android").setMethodCallHandler {
+        androidChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "android")
+        androidChannel!!.setMethodCallHandler {
             // 注册通道并设置方法调用处理器
             call, result ->
             // 判断方法名
@@ -39,6 +42,18 @@ class MainActivity: FlutterActivity() {
                 }
             }
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F12) {
+            handleF12Key()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    fun handleF12Key() {
+        androidChannel?.invokeMethod("onF12", null)
     }
 
 }

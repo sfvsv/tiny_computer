@@ -2135,6 +2135,11 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    D.androidChannel.setMethodCallHandler((call) async {
+      if (call.method == "onF12" && isLoadingComplete) {
+        _enterDesktop();
+      }
+    });
     Future.delayed(Duration.zero, () {
       _initializeWorkflow();
     });
