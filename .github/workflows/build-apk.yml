@@ -78,6 +78,25 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Create temporary release keystore
+        run: |
+          keytool -genkeypair \
+            -keystore android/app/upload-keystore.jks \
+            -storepass android \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -alias upload \
+            -dname "CN=Tiny Computer,O=Cloud Build,C=US"
+
+          cat > android/keystore.properties <<'EOF'
+          storePassword=android
+          keyPassword=android
+          keyAlias=upload
+          storeFile=upload-keystore.jks
+          EOF
+
       - name: Build APK
         run: |
           flutter build apk \
