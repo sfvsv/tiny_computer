@@ -76,7 +76,7 @@ class Util {
   //int defaultAudioPort = 4718: 默认pulseaudio端口(为了避免和其它软件冲突改成4718了，原默认4713)
   //bool autoLaunchVnc = true: 是否自动启动图形界面并跳转 以前只支持VNC就这么起名了
   //String lastDate: 上次启动软件的日期，yyyy-MM-dd
-  //bool isTerminalWriteEnabled = false
+  //bool isTerminalWriteEnabled = true
   //bool isTerminalCommandsEnabled = false 
   //int termMaxLines = 4095 终端最大行数
   //double termFontScale = 1 终端字体大小
@@ -92,7 +92,7 @@ class Util {
   //bool isJpEnabled = false 是否切换系统到日语
   //bool useAvnc = false 是否默认使用AVNC
   //bool avncResizeDesktop = true 是否默认AVNC按当前屏幕大小调整分辨率
-  //double avncScaleFactor = -0.5 AVNC：在当前屏幕大小的基础上调整缩放的比例。范围-1~1，对应比例4^-1~4^1
+  //double avncScaleFactor = 0 AVNC：在当前屏幕大小的基础上调整缩放的比例。范围-1~1，对应比例4^-1~4^1
   //String defaultHidpiOpt 默认HiDPI环境变量
   //? int bootstrapVersion: 启动包版本
   //String[] containersInfo: 所有容器信息(json)
@@ -106,8 +106,8 @@ class Util {
       case "defaultAudioPort" : return b ? G.prefs.getInt(key)! : (value){G.prefs.setInt(key, value); return value;}(4718);
       case "autoLaunchVnc" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
       case "lastDate" : return b ? G.prefs.getString(key)! : (value){G.prefs.setString(key, value); return value;}("1970-01-01");
-      case "isTerminalWriteEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
-      case "isTerminalCommandsEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
+      case "isTerminalWriteEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
+      case "isTerminalCommandsEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
       case "termMaxLines" : return b ? G.prefs.getInt(key)! : (value){G.prefs.setInt(key, value); return value;}(4095);
       case "termFontScale" : return b ? G.prefs.getDouble(key)! : (value){G.prefs.setDouble(key, value); return value;}(1.0);
       case "isStickyKey" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
@@ -121,7 +121,7 @@ class Util {
       case "isJpEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
       case "useAvnc" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
       case "avncResizeDesktop" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
-      case "avncScaleFactor" : return b ? G.prefs.getDouble(key)!.clamp(-1.0, 1.0) : (value){G.prefs.setDouble(key, value); return value;}(-0.5);
+      case "avncScaleFactor" : return b ? G.prefs.getDouble(key)!.clamp(-1.0, 1.0) : (value){G.prefs.setDouble(key, value); return value;}(0.0);
       case "useX11" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
       case "defaultVirglCommand" : return b ? G.prefs.getString(key)! : (value){G.prefs.setString(key, value); return value;}("--use-egl-surfaceless --use-gles --socket-path=\$CONTAINER_DIR/tmp/.virgl_test");
       case "defaultVirglOpt" : return b ? G.prefs.getString(key)! : (value){G.prefs.setString(key, value); return value;}("GALLIUM_DRIVER=virpipe");
@@ -323,15 +323,9 @@ class TermPty {
       if (!(Util.getGlobal("isTerminalWriteEnabled") as bool)) {
         return;
       }
-      //由于对回车的处理似乎存在问题，所以拿出来单独处理
-      data.split("").forEach((element) {
-        if (element == "\n" && !G.maybeCtrlJ) {
-          terminal.keyInput(TerminalKey.enter);
-          return;
-        }
-        G.maybeCtrlJ = false;
-        pty.write(const Utf8Encoder().convert(element));
-      });
+      final normalizedData = G.maybeCtrlJ ? data : data.replaceAll("\n", "\r");
+      pty.write(const Utf8Encoder().convert(normalizedData));
+      G.maybeCtrlJ = false;
     };
     terminal.onResize = (w, h, pw, ph) {
       pty.resize(h, w);
@@ -380,6 +374,8 @@ rm /tmp/wps.deb"""},
     {"name":"卸载钉钉", "command":"sudo apt autoremove --purge -y com.alibabainc.dingtalk"},
     {"name":"启用回收站", "command":"sudo apt update && sudo apt install -y gvfs && echo '安装完成, 重启软件即可使用回收站。'"},
     {"name":"清理包管理器缓存", "command":"sudo apt clean"},
+    {"name":"修复中文输入", "command":D.restartChineseInputCommand},
+    {"name":"退出桌面", "command":"stopvnc"},
     {"name":"关机", "command":"stopvnc\nexit\nexit"},
     {"name":"???", "command":"timeout 8 cmatrix"}
   ];
@@ -404,6 +400,8 @@ rm /tmp/wps.deb"""},
     {"name":"Uninstall EdrawMax", "command":"sudo apt autoremove --purge -y edrawmax libldap-2.4-2"},
     {"name":"Enable Recycle Bin", "command":"sudo apt update && sudo apt install -y gvfs && echo 'Restart the app to use Recycle Bin.'"},
     {"name":"Clean Package Cache", "command":"sudo apt clean"},
+    {"name":"Fix Chinese Input", "command":D.restartChineseInputCommand},
+    {"name":"Exit Desktop", "command":"stopvnc"},
     {"name":"Power Off", "command":"stopvnc\nexit\nexit"},
     {"name":"???", "command":"timeout 8 cmatrix"}
   ];
@@ -484,6 +482,21 @@ WINEDLLOVERRIDES="d3d8=b,d3d9=b,d3d10core=b,d3d11=b,dxgi=b" wine reg add 'HKEY_C
     {"name": "F11", "key": TerminalKey.f11},
     {"name": "F12", "key": TerminalKey.f12},
   ];
+
+  static const String restartChineseInputCommand = r"""
+if ! command -v fcitx >/dev/null 2>&1 && ! command -v fcitx5 >/dev/null 2>&1; then
+  echo '未找到 fcitx，正在安装中文输入法...'
+  sudo apt update
+  sudo apt install -y fcitx fcitx-libpinyin fcitx-ui-classic
+fi
+export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+pkill -x fcitx >/dev/null 2>&1 || true
+pkill -x fcitx5 >/dev/null 2>&1 || true
+(fcitx5 -d || fcitx -d || fcitx-autostart) >/tmp/tiny-fcitx.log 2>&1 &
+echo '已尝试启动中文输入法。请在图形界面按 Ctrl+空格 或 Ctrl+Shift 切换中英文。'
+""";
 
   static const String boot = "\$DATA_DIR/bin/proot -H --change-id=1000:1000 --pwd=/home/tiny --rootfs=\$CONTAINER_DIR --mount=/system --mount=/apex --mount=/sys --mount=/data --kill-on-exit --mount=/storage --sysvipc -L --link2symlink --mount=/proc --mount=/dev --mount=\$CONTAINER_DIR/tmp:/dev/shm --mount=/dev/urandom:/dev/random --mount=/proc/self/fd:/dev/fd --mount=/proc/self/fd/0:/dev/stdin --mount=/proc/self/fd/1:/dev/stdout --mount=/proc/self/fd/2:/dev/stderr --mount=/dev/null:/dev/tty0 --mount=/dev/null:/proc/sys/kernel/cap_last_cap --mount=/storage/self/primary:/media/sd --mount=\$DATA_DIR/share:/home/tiny/公共 --mount=\$DATA_DIR/tiny:/home/tiny/.local/share/tiny --mount=/storage/self/primary/Fonts:/usr/share/fonts/wpsm --mount=/storage/self/primary/AppFiles/Fonts:/usr/share/fonts/yozom --mount=/system/fonts:/usr/share/fonts/androidm --mount=/storage/self/primary/Pictures:/home/tiny/图片 --mount=/storage/self/primary/Music:/home/tiny/音乐 --mount=/storage/self/primary/Movies:/home/tiny/视频 --mount=/storage/self/primary/Download:/home/tiny/下载 --mount=/storage/self/primary/DCIM:/home/tiny/照片 --mount=/storage/self/primary/Documents:/home/tiny/文档 --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/.tmoe-container.stat:/proc/stat --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/.tmoe-container.version:/proc/version --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/bus:/proc/bus --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/buddyinfo:/proc/buddyinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/cgroups:/proc/cgroups --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/consoles:/proc/consoles --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/crypto:/proc/crypto --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/devices:/proc/devices --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/diskstats:/proc/diskstats --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/execdomains:/proc/execdomains --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/fb:/proc/fb --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/filesystems:/proc/filesystems --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/interrupts:/proc/interrupts --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/iomem:/proc/iomem --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/ioports:/proc/ioports --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/kallsyms:/proc/kallsyms --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/keys:/proc/keys --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/key-users:/proc/key-users --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/kpageflags:/proc/kpageflags --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/loadavg:/proc/loadavg --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/locks:/proc/locks --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/misc:/proc/misc --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/modules:/proc/modules --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/pagetypeinfo:/proc/pagetypeinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/partitions:/proc/partitions --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/sched_debug:/proc/sched_debug --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/softirqs:/proc/softirqs --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/timer_list:/proc/timer_list --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/uptime:/proc/uptime --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/vmallocinfo:/proc/vmallocinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/vmstat:/proc/vmstat --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/zoneinfo:/proc/zoneinfo \$EXTRA_MOUNT /usr/bin/env -i HOSTNAME=TINY HOME=/home/tiny USER=tiny TERM=xterm-256color SDL_IM_MODULE=fcitx XMODIFIERS=@im=fcitx QT_IM_MODULE=fcitx GTK_IM_MODULE=fcitx TMOE_CHROOT=false TMOE_PROOT=true TMPDIR=/tmp MOZ_FAKE_NO_SANDBOX=1 QTWEBENGINE_DISABLE_SANDBOX=1 DISPLAY=:4 PULSE_SERVER=tcp:127.0.0.1:4718 LANG=zh_CN.UTF-8 SHELL=/bin/bash PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games \$EXTRA_OPT /bin/bash -l";
 
@@ -698,6 +711,11 @@ sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""";
       }
       await G.prefs.setBool("getifaddrsBridge", (await DeviceInfoPlugin().androidInfo).version.sdkInt >= 31);
     }
+    if (!G.prefs.containsKey("terminalInputMigrationV2")) {
+      await G.prefs.setBool("isTerminalWriteEnabled", true);
+      await G.prefs.setBool("isTerminalCommandsEnabled", true);
+      await G.prefs.setBool("terminalInputMigrationV2", true);
+    }
     G.currentContainer = Util.getGlobal("defaultContainer") as int;
 
     //是否需要重新安装引导包?
@@ -795,8 +813,11 @@ ${G.postCommand}
 clear""");
   }
 
-  static Future<void> launchGUIBackend() async {
-    Util.termWrite((Util.getGlobal("autoLaunchVnc") as bool)?((Util.getGlobal("useX11") as bool)?"""mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/Xsession &> "\$HOME/.vnc/x.log" &""":Util.getCurrentProp("vnc")):"");
+  static Future<void> launchGUIBackend({bool force = false}) async {
+    if (!(force || Util.getGlobal("autoLaunchVnc") as bool)) {
+      return;
+    }
+    Util.termWrite((Util.getGlobal("useX11") as bool)?"""mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/Xsession &> "\$HOME/.vnc/x.log" &""":Util.getCurrentProp("vnc"));
     Util.termWrite("clear");
   }
 
@@ -807,6 +828,46 @@ clear""");
       // Retry on SocketException or TimeoutException
       retryIf: (e) => e is SocketException || e is TimeoutException,
     );
+  }
+
+  static Future<void> waitForTcpConnection(String host, int port) async {
+    await retry(
+      () async {
+        final socket = await Socket.connect(host, port, timeout: const Duration(milliseconds: 500));
+        await socket.close();
+      },
+      retryIf: (e) => e is SocketException || e is TimeoutException,
+    );
+  }
+
+  static Future<void> waitForVncServer() async {
+    try {
+      final uri = Uri.parse(Util.getCurrentProp("vncUri") as String);
+      final host = uri.host.isEmpty ? "127.0.0.1" : uri.host;
+      final port = uri.hasPort ? uri.port : 5900;
+      await waitForTcpConnection(host, port);
+    } catch (e) {
+      await waitForConnection();
+    }
+  }
+
+  static Future<void> enterGUI({bool ensureBackend = true}) async {
+    if (G.wasX11Enabled) {
+      if (!(await Util.isXServerReady('127.0.0.1', 7897, timeoutSeconds: 1))) {
+        await launchXServer();
+        await Util.waitForXServer();
+      }
+      if (ensureBackend) {
+        launchGUIBackend(force: true);
+      }
+      await launchX11();
+      return;
+    }
+    if (ensureBackend) {
+      launchGUIBackend(force: true);
+    }
+    await (G.wasAvncEnabled ? waitForVncServer() : waitForConnection());
+    await (G.wasAvncEnabled ? launchAvnc() : launchBrowser());
   }
 
   static Future<void> launchBrowser() async {
@@ -856,16 +917,7 @@ clear""");
     setupAudio();
     launchCurrentContainer();
     if (Util.getGlobal("autoLaunchVnc") as bool) {
-      if (G.wasX11Enabled) {
-        await Util.waitForXServer();
-        launchGUIBackend();
-        launchX11();
-        return;
-      }
-      launchGUIBackend();
-      waitForConnection().then((value) => G.wasAvncEnabled?launchAvnc():launchBrowser());
+      enterGUI(ensureBackend: true);
     }
   }
 }
-
-

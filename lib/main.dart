@@ -312,6 +312,34 @@ class _SettingPageState extends State<SettingPage> {
           const SizedBox.square(dimension: 8),
           const Divider(height: 2, indent: 8, endIndent: 8),
           const SizedBox.square(dimension: 16),
+          Text(AppLocalizations.of(context)!.hardwareInputTools),
+          const SizedBox.square(dimension: 8),
+          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
+            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.restartChineseInput), onPressed: () async {
+              Util.termWrite(D.restartChineseInputCommand);
+              G.pageIndex.value = 0;
+            }),
+            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.optimizeExternalInput), onPressed: () async {
+              await G.prefs.setBool("useAvnc", true);
+              await G.prefs.setBool("avncResizeDesktop", true);
+              await G.prefs.setDouble("avncScaleFactor", 0.0);
+              _avncScaleFactor = 0.0;
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(AppLocalizations.of(context)!.externalInputOptimized))
+              );
+              setState(() {});
+            }),
+            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.avncSettings), onPressed: () async {
+              await AvncFlutter.launchPrefsPage();
+            }),
+          ]),
+          const SizedBox.square(dimension: 8),
+          Text(AppLocalizations.of(context)!.optimizeExternalInputHint),
+          const SizedBox.square(dimension: 8),
+          const Divider(height: 2, indent: 8, endIndent: 8),
+          const SizedBox.square(dimension: 16),
           Text(AppLocalizations.of(context)!.restartRequiredHint),
           const SizedBox.square(dimension: 8),
           SwitchListTile(title: Text(AppLocalizations.of(context)!.startWithGUI), value: Util.getGlobal("autoLaunchVnc") as bool, onChanged:(value) {
@@ -1140,7 +1168,7 @@ class LoadingPage extends StatelessWidget {
 class ForceScaleGestureRecognizer extends ScaleGestureRecognizer {
   @override
   void rejectGesture(int pointer) {
-    super.acceptGesture(pointer);
+    super.rejectGesture(pointer);
   }
 }
 
@@ -1349,13 +1377,7 @@ class _MyHomePageState extends State<MyHomePage> {
               visible: isLoadingComplete,
               child: IconButton.filledTonal(
                   onPressed: () {
-                    if (G.wasX11Enabled) {
-                      Workflow.launchX11();
-                    } else if (G.wasAvncEnabled) {
-                      Workflow.launchAvnc();
-                    } else {
-                      Workflow.launchBrowser();
-                    }
+                    Workflow.enterGUI(ensureBackend: true);
                   },
                   icon: const Icon(Icons.play_arrow),
                   tooltip: AppLocalizations.of(context)!.enterGUI))
