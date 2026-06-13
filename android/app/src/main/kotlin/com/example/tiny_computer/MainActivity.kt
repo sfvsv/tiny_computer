@@ -45,15 +45,22 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F11) {
-            handleF11Key()
+        if (event.action == KeyEvent.ACTION_DOWN && isDesktopShortcut(event)) {
+            handleDesktopShortcut()
             return true
         }
         return super.dispatchKeyEvent(event)
     }
 
-    fun handleF11Key() {
-        androidChannel?.invokeMethod("onF11", null)
+    fun handleDesktopShortcut() {
+        androidChannel?.invokeMethod("onDesktopShortcut", null)
+    }
+
+    private fun isDesktopShortcut(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_F11) return true
+        return event.isCtrlPressed &&
+            event.isAltPressed &&
+            event.keyCode == KeyEvent.KEYCODE_D
     }
 
 }

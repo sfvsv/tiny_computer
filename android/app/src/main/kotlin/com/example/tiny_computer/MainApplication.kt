@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.Window
 import com.google.android.material.color.DynamicColors
@@ -15,7 +17,7 @@ class MainApplication : FlutterApplication() {
     override fun onCreate() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this@MainApplication)
-        registerActivityLifecycleCallbacks(F11ActivityCallbacks())
+        registerActivityLifecycleCallbacks(DesktopShortcutActivityCallbacks())
     }
 
     override fun attachBaseContext(base: Context?) {
@@ -23,12 +25,11 @@ class MainApplication : FlutterApplication() {
         Reflection.unseal(base)
     }
 
-    private class F11ActivityCallbacks : Application.ActivityLifecycleCallbacks {
+    private class DesktopShortcutActivityCallbacks : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: Activity) {
-            val window = activity.window ?: return
-            val current = window.callback ?: return
-            if (current is F11WindowCallback) return
-            window.callback = F11WindowCallback(activity, current)
+            installShortcutCallback(activity)
+            Handler(Looper.getMainLooper()).postDelayed({ installShortcutCallback(activity) }, 250)
+            Handler(Looper.getMainLooper()).postDelayed({ installShortcutCallback(activity) }, 1000)
         }
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
@@ -37,22 +38,37 @@ class MainApplication : FlutterApplication() {
         override fun onActivityStopped(activity: Activity) {}
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
         override fun onActivityDestroyed(activity: Activity) {}
+
+        private fun installShortcutCallback(activity: Activity) {
+            if (activity.isFinishing || activity.isDestroyed) return
+            val window = activity.window ?: return
+            val current = window.callback ?: return
+            if (current is DesktopShortcutWindowCallback) return
+            window.callback = DesktopShortcutWindowCallback(activity, current)
+        }
     }
 
-    private class F11WindowCallback(
+    private class DesktopShortcutWindowCallback(
         private val activity: Activity,
         private val base: Window.Callback,
     ) : Window.Callback by base {
         override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-            if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F11) {
+            if (event.action == KeyEvent.ACTION_DOWN && isDesktopShortcut(event)) {
                 if (activity is MainActivity) {
-                    activity.handleF11Key()
+                    activity.handleDesktopShortcut()
                 } else {
                     activity.finish()
                 }
                 return true
             }
             return base.dispatchKeyEvent(event)
+        }
+
+        private fun isDesktopShortcut(event: KeyEvent): Boolean {
+            if (event.keyCode == KeyEvent.KEYCODE_F11) return true
+            return event.isCtrlPressed &&
+                event.isAltPressed &&
+                event.keyCode == KeyEvent.KEYCODE_D
         }
     }
 }

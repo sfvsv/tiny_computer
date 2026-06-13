@@ -1997,6 +1997,17 @@ class _FastCommandsState extends State<FastCommands> {
                 },
               );
             }).toList()
+            ..insert(
+              0,
+              OutlinedButton.icon(
+                style: D.commandButtonStyle,
+                icon: const Icon(Icons.play_arrow),
+                label: Text(AppLocalizations.of(context)!.enterGUI),
+                onPressed: () {
+                  MyHomePage.enterDesktop();
+                },
+              ),
+            )
             ..add(
               OutlinedButton(
                 style: D.commandButtonStyle,
@@ -2124,6 +2135,17 @@ class MyHomePage extends StatefulWidget {
 
   final String title;
 
+  static void enterDesktop() {
+    Workflow.launchGUIBackend();
+    if (G.wasX11Enabled) {
+      Workflow.launchX11();
+    } else if (G.wasAvncEnabled) {
+      Workflow.launchAvnc();
+    } else {
+      Workflow.launchBrowser();
+    }
+  }
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -2136,7 +2158,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     D.androidChannel.setMethodCallHandler((call) async {
-      if (call.method == "onF11" && isLoadingComplete) {
+      if (call.method == "onDesktopShortcut" && isLoadingComplete) {
         _enterDesktop();
       }
     });
@@ -2159,21 +2181,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _enterDesktop() {
-    Workflow.launchGUIBackend();
-    if (G.wasX11Enabled) {
-      Workflow.launchX11();
-    } else if (G.wasAvncEnabled) {
-      Workflow.launchAvnc();
-    } else {
-      Workflow.launchBrowser();
-    }
+    MyHomePage.enterDesktop();
   }
 
   KeyEventResult _handleGlobalKey(FocusNode node, KeyEvent event) {
     if (!isLoadingComplete || event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
-    if (event.logicalKey == LogicalKeyboardKey.f11) {
+    if (event.logicalKey == LogicalKeyboardKey.f11 ||
+        (HardwareKeyboard.instance.isControlPressed &&
+            HardwareKeyboard.instance.isAltPressed &&
+            event.logicalKey == LogicalKeyboardKey.keyD)) {
       _enterDesktop();
       return KeyEventResult.handled;
     }
