@@ -1,0 +1,110 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      desktop_env:
+        description: "Desktop environment"
+        required: true
+        default: "xfce"
+        type: choice
+        options:
+          - xfce
+          - lxqt
+          - gxde
+      release_tag:
+        description: "Release tag used to download jniLibs, patch, and rootfs"
+        required: true
+        default: "v1.1.0"
+      name_suffix:
+        description: "Optional APK name suffix"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    name: Build ${{ inputs.desktop_env }} APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      DESKTOP_ENV: ${{ inputs.desktop_env }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      NAME_SUFFIX: ${{ inputs.name_suffix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Download release assets
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/Cateners/tiny_computer/releases/download/${RELEASE_TAG}"
+
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a assets downloads
+
+          curl -L --fail --retry 5 --retry-delay 5 \
+            "${base_url}/jniLibs.zip" \
+            -o downloads/jniLibs.zip
+
+          curl -L --fail --retry 5 --retry-delay 5 \
+            "${base_url}/patch.tar.gz" \
+            -o assets/patch.tar.gz
+
+          curl -L --fail --retry 5 --retry-delay 5 \
+            "${base_url}/debian-${DESKTOP_ENV}.tar.xz" \
+            -o downloads/debian.tar.xz
+
+          unzip -q downloads/jniLibs.zip -d android/app/src/main/jniLibs/arm64-v8a
+          split -b 98M downloads/debian.tar.xz assets/xa
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: |
+          flutter build apk \
+            --target-platform android-arm64 \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=tiny_computer/sdi
+
+      - name: Rename APK
+        run: |
+          set -euo pipefail
+          out_dir="build/app/outputs/flutter-apk"
+          suffix=""
+          if [ -n "${NAME_SUFFIX}" ]; then
+            suffix="-${NAME_SUFFIX}"
+          fi
+
+          mv "${out_dir}/app-arm64-v8a-release.apk" "${out_dir}/tiny-computer-${DESKTOP_ENV}${suffix}.apk"
+          if [ -f "${out_dir}/app-arm64-v8a-release.apk.sha1" ]; then
+            mv "${out_dir}/app-arm64-v8a-release.apk.sha1" "${out_dir}/tiny-computer-${DESKTOP_ENV}${suffix}.apk.sha1"
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiny-computer-${{ inputs.desktop_env }}${{ inputs.name_suffix && format('-{0}', inputs.name_suffix) || '' }}
+          path: |
+            build/app/outputs/flutter-apk/tiny-computer-*.apk
+            build/app/outputs/flutter-apk/tiny-computer-*.apk.sha1
+          if-no-files-found: error
+          retention-days: 7
