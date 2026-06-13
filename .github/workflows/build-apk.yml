@@ -50,7 +50,8 @@ jobs:
 
       - name: Install Android NDK
         run: |
-          sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" "cmake;3.22.1"
 
       - name: Download release assets
         run: |
