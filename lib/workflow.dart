@@ -92,7 +92,7 @@ class Util {
   //bool isJpEnabled = false 是否切换系统到日语
   //bool useAvnc = false 是否默认使用AVNC
   //bool avncResizeDesktop = true 是否默认AVNC按当前屏幕大小调整分辨率
-  //double avncScaleFactor = 0 AVNC：在当前屏幕大小的基础上调整缩放的比例。范围-1~1，对应比例4^-1~4^1
+  //double avncScaleFactor = 0.5 AVNC：在当前屏幕大小的基础上调整缩放的比例。范围-1~1，对应比例4^-1~4^1
   //String defaultHidpiOpt 默认HiDPI环境变量
   //? int bootstrapVersion: 启动包版本
   //String[] containersInfo: 所有容器信息(json)
@@ -121,7 +121,7 @@ class Util {
       case "isJpEnabled" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
       case "useAvnc" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
       case "avncResizeDesktop" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(true);
-      case "avncScaleFactor" : return b ? G.prefs.getDouble(key)!.clamp(-1.0, 1.0) : (value){G.prefs.setDouble(key, value); return value;}(0.0);
+      case "avncScaleFactor" : return b ? G.prefs.getDouble(key)!.clamp(-1.0, 1.0) : (value){G.prefs.setDouble(key, value); return value;}(0.5);
       case "useX11" : return b ? G.prefs.getBool(key)! : (value){G.prefs.setBool(key, value); return value;}(false);
       case "defaultVirglCommand" : return b ? G.prefs.getString(key)! : (value){G.prefs.setString(key, value); return value;}("--use-egl-surfaceless --use-gles --socket-path=\$CONTAINER_DIR/tmp/.virgl_test");
       case "defaultVirglOpt" : return b ? G.prefs.getString(key)! : (value){G.prefs.setString(key, value); return value;}("GALLIUM_DRIVER=virpipe");
@@ -484,11 +484,12 @@ WINEDLLOVERRIDES="d3d8=b,d3d9=b,d3d10core=b,d3d11=b,dxgi=b" wine reg add 'HKEY_C
   ];
 
   static const String installChineseInputCommand = r"""
-echo '正在安装/启用中文输入法...'
+echo '正在安装/启用简体中文拼音输入法...'
 sudo apt update
 if apt-cache show fcitx5-chinese-addons >/dev/null 2>&1; then
-  sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt fcitx5-frontend-gtk3 fcitx5-frontend-qt5 || sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt
+  sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-pinyin fcitx5-config-qt fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5 im-config || sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-pinyin fcitx5-config-qt im-config
   mkdir -p "$HOME/.config/fcitx5"
+  rm -f "$HOME/.config/fcitx5/profile"
   cat > "$HOME/.config/fcitx5/profile" <<'EOF'
 [Groups/0]
 Name=Default
@@ -506,24 +507,53 @@ Layout=
 [GroupOrder]
 0=Default
 EOF
+  mkdir -p "$HOME/.config/fcitx5/conf"
+  cat > "$HOME/.config/fcitx5/conf/pinyin.conf" <<'EOF'
+# 默认使用简体中文拼音，避免安装后落到繁体变体。
+Simplified Chinese=True
+EOF
 else
-  sudo apt install -y fcitx fcitx-libpinyin fcitx-ui-classic fcitx-frontend-gtk2 fcitx-frontend-gtk3 fcitx-frontend-qt5 || sudo apt install -y fcitx fcitx-libpinyin fcitx-ui-classic
+  sudo apt install -y fcitx fcitx-pinyin fcitx-libpinyin fcitx-ui-classic fcitx-frontend-gtk2 fcitx-frontend-gtk3 fcitx-frontend-qt5 im-config || sudo apt install -y fcitx fcitx-pinyin fcitx-libpinyin fcitx-ui-classic im-config
 fi
 export XMODIFIERS=@im=fcitx
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
+export SDL_IM_MODULE=fcitx
+mkdir -p "$HOME/.config/environment.d"
+cat > "$HOME/.config/environment.d/90-fcitx.conf" <<'EOF'
+XMODIFIERS=@im=fcitx
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+SDL_IM_MODULE=fcitx
+EOF
+cat > "$HOME/.xprofile" <<'EOF'
+export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export SDL_IM_MODULE=fcitx
+fcitx5 -d >/tmp/tiny-fcitx.log 2>&1 || fcitx -d >/tmp/tiny-fcitx.log 2>&1 || true
+EOF
+grep -q 'tiny-fcitx-env' "$HOME/.profile" 2>/dev/null || cat >> "$HOME/.profile" <<'EOF'
+
+# tiny-fcitx-env
+export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export SDL_IM_MODULE=fcitx
+EOF
 mkdir -p "$HOME/.config/autostart"
 cat > "$HOME/.config/autostart/fcitx.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Fcitx
-Exec=sh -c 'fcitx5 -d || fcitx -d || fcitx-autostart'
+Exec=sh -c 'fcitx5 -d || fcitx -d || fcitx-autostart || true'
 X-GNOME-Autostart-enabled=true
 EOF
+im-config -n fcitx5 >/dev/null 2>&1 || im-config -n fcitx >/dev/null 2>&1 || true
 pkill -x fcitx >/dev/null 2>&1 || true
 pkill -x fcitx5 >/dev/null 2>&1 || true
-(fcitx5 -d || fcitx -d || fcitx-autostart) >/tmp/tiny-fcitx.log 2>&1 &
-echo '中文输入法已安装/启动。请重新进入桌面，在桌面应用中按 Ctrl+空格 或 Ctrl+Shift 切换中英文。'
+(fcitx5 -d || fcitx -d || fcitx-autostart || true) >/tmp/tiny-fcitx.log 2>&1 &
+echo '简体中文拼音输入法已安装/启动。请退出并重新进入桌面，在桌面应用中按 Ctrl+空格 或 Ctrl+Shift 切换中英文。'
 """;
 
   static const String boot = "\$DATA_DIR/bin/proot -H --change-id=1000:1000 --pwd=/home/tiny --rootfs=\$CONTAINER_DIR --mount=/system --mount=/apex --mount=/sys --mount=/data --kill-on-exit --mount=/storage --sysvipc -L --link2symlink --mount=/proc --mount=/dev --mount=\$CONTAINER_DIR/tmp:/dev/shm --mount=/dev/urandom:/dev/random --mount=/proc/self/fd:/dev/fd --mount=/proc/self/fd/0:/dev/stdin --mount=/proc/self/fd/1:/dev/stdout --mount=/proc/self/fd/2:/dev/stderr --mount=/dev/null:/dev/tty0 --mount=/dev/null:/proc/sys/kernel/cap_last_cap --mount=/storage/self/primary:/media/sd --mount=\$DATA_DIR/share:/home/tiny/公共 --mount=\$DATA_DIR/tiny:/home/tiny/.local/share/tiny --mount=/storage/self/primary/Fonts:/usr/share/fonts/wpsm --mount=/storage/self/primary/AppFiles/Fonts:/usr/share/fonts/yozom --mount=/system/fonts:/usr/share/fonts/androidm --mount=/storage/self/primary/Pictures:/home/tiny/图片 --mount=/storage/self/primary/Music:/home/tiny/音乐 --mount=/storage/self/primary/Movies:/home/tiny/视频 --mount=/storage/self/primary/Download:/home/tiny/下载 --mount=/storage/self/primary/DCIM:/home/tiny/照片 --mount=/storage/self/primary/Documents:/home/tiny/文档 --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/.tmoe-container.stat:/proc/stat --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/.tmoe-container.version:/proc/version --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/bus:/proc/bus --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/buddyinfo:/proc/buddyinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/cgroups:/proc/cgroups --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/consoles:/proc/consoles --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/crypto:/proc/crypto --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/devices:/proc/devices --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/diskstats:/proc/diskstats --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/execdomains:/proc/execdomains --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/fb:/proc/fb --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/filesystems:/proc/filesystems --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/interrupts:/proc/interrupts --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/iomem:/proc/iomem --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/ioports:/proc/ioports --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/kallsyms:/proc/kallsyms --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/keys:/proc/keys --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/key-users:/proc/key-users --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/kpageflags:/proc/kpageflags --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/loadavg:/proc/loadavg --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/locks:/proc/locks --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/misc:/proc/misc --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/modules:/proc/modules --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/pagetypeinfo:/proc/pagetypeinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/partitions:/proc/partitions --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/sched_debug:/proc/sched_debug --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/softirqs:/proc/softirqs --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/timer_list:/proc/timer_list --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/uptime:/proc/uptime --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/vmallocinfo:/proc/vmallocinfo --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/vmstat:/proc/vmstat --mount=\$CONTAINER_DIR/usr/local/etc/tmoe-linux/proot_proc/zoneinfo:/proc/zoneinfo \$EXTRA_MOUNT /usr/bin/env -i HOSTNAME=TINY HOME=/home/tiny USER=tiny TERM=xterm-256color SDL_IM_MODULE=fcitx XMODIFIERS=@im=fcitx QT_IM_MODULE=fcitx GTK_IM_MODULE=fcitx TMOE_CHROOT=false TMOE_PROOT=true TMPDIR=/tmp MOZ_FAKE_NO_SANDBOX=1 QTWEBENGINE_DISABLE_SANDBOX=1 DISPLAY=:4 PULSE_SERVER=tcp:127.0.0.1:4718 LANG=zh_CN.UTF-8 SHELL=/bin/bash PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games \$EXTRA_OPT /bin/bash -l";
@@ -743,6 +773,12 @@ sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""";
       await G.prefs.setBool("isTerminalWriteEnabled", true);
       await G.prefs.setBool("isTerminalCommandsEnabled", true);
       await G.prefs.setBool("terminalInputMigrationV2", true);
+    }
+    if (!G.prefs.containsKey("externalInputMigrationV3")) {
+      await G.prefs.setBool("useAvnc", true);
+      await G.prefs.setBool("avncResizeDesktop", true);
+      await G.prefs.setDouble("avncScaleFactor", 0.5);
+      await G.prefs.setBool("externalInputMigrationV3", true);
     }
     G.currentContainer = Util.getGlobal("defaultContainer") as int;
 

@@ -325,8 +325,8 @@ class _SettingPageState extends State<SettingPage> {
             OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.optimizeExternalInput), onPressed: () async {
               await G.prefs.setBool("useAvnc", true);
               await G.prefs.setBool("avncResizeDesktop", true);
-              await G.prefs.setDouble("avncScaleFactor", 0.0);
-              _avncScaleFactor = 0.0;
+              await G.prefs.setDouble("avncScaleFactor", 0.5);
+              _avncScaleFactor = 0.5;
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
