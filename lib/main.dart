@@ -315,8 +315,11 @@ class _SettingPageState extends State<SettingPage> {
           Text(AppLocalizations.of(context)!.hardwareInputTools),
           const SizedBox.square(dimension: 8),
           Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.restartChineseInput), onPressed: () async {
-              Util.termWrite(D.restartChineseInputCommand);
+            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.enterDesktop), onPressed: () async {
+              await Workflow.enterGUI(ensureBackend: true);
+            }),
+            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.installChineseInput), onPressed: () async {
+              Util.termWrite(D.installChineseInputCommand);
               G.pageIndex.value = 0;
             }),
             OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.optimizeExternalInput), onPressed: () async {
