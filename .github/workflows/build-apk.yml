@@ -36,6 +36,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /usr/local/lib/android/sdk/cmake
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo rm -rf /usr/local/lib/android/sdk/emulator
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker system prune -af || true
+          df -h
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -74,6 +89,8 @@ jobs:
 
           unzip -q downloads/jniLibs.zip -d android/app/src/main/jniLibs/arm64-v8a
           split -b 98M downloads/debian.tar.xz assets/xa
+          rm -rf downloads
+          df -h
 
       - name: Get Flutter dependencies
         run: flutter pub get
