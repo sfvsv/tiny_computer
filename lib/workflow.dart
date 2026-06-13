@@ -596,14 +596,6 @@ export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
 export SDL_IM_MODULE=fcitx
 
-if command -v xfconf-query >/dev/null 2>&1; then
-  xfconf-query -c xsettings -p /Xft/DPI -n -t int -s 120 >/dev/null 2>&1 || true
-  xfconf-query -c xsettings -p /Gtk/FontName -n -t string -s "Noto Sans CJK SC 11" >/dev/null 2>&1 || true
-  xfconf-query -c xfce4-desktop -p /desktop-icons/icon-size -n -t int -s 56 >/dev/null 2>&1 || true
-  xfconf-query -c xfce4-panel -p /panels/panel-1/size -n -t int -s 38 >/dev/null 2>&1 || true
-  xfconf-query -c xfwm4 -p /general/title_font -n -t string -s "Noto Sans CJK SC Bold 11" >/dev/null 2>&1 || true
-fi
-
 terminalrc="$HOME/.config/xfce4/terminal/terminalrc"
 touch "$terminalrc"
 grep -q '^FontName=' "$terminalrc" && sed -i 's/^FontName=.*/FontName=Monospace 12/' "$terminalrc" || printf '\nFontName=Monospace 12\n' >> "$terminalrc"
@@ -618,40 +610,60 @@ chmod +x "$HOME/.local/bin/tiny-tablet-session-setup"
 cat > "$HOME/.config/autostart/tiny-tablet-session-setup.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=Tiny Tablet Input and Scale
+Name=Tiny Tablet Input
 Exec=/home/tiny/.local/bin/tiny-tablet-session-setup
 X-GNOME-Autostart-enabled=true
 EOF''';
 
   static const String installSimplifiedChineseInputCommand =
-      r'''echo '正在安装/启用简体中文拼音输入法...'
+      r'''echo '正在安装/启用现代简体中文输入法（Rime，小狼毫/中州韵方案）...'
 sudo dpkg --configure -a
 sudo apt update
-sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt im-config dbus-x11
+sudo apt install -y fcitx5 fcitx5-rime rime-data-pinyin-simp fcitx5-config-qt im-config dbus-x11 || sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt im-config dbus-x11
 sudo apt install -y fcitx5-frontend-gtk3 fcitx5-frontend-qt5 || true
 sudo apt install -y fcitx5-frontend-gtk4 || true
-mkdir -p "$HOME/.config/fcitx5/conf" "$HOME/.config/fcitx5/addon" "$HOME/.config/autostart" "$HOME/.config/environment.d"
+mkdir -p "$HOME/.config/fcitx5/conf" "$HOME/.config/fcitx5/addon" "$HOME/.config/autostart" "$HOME/.config/environment.d" "$HOME/.local/share/fcitx5/rime"
+if fcitx5-diagnose 2>/dev/null | grep -q rime || [ -d /usr/share/rime-data ]; then
+  default_im=rime
+else
+  default_im=pinyin
+fi
 cat > "$HOME/.config/fcitx5/profile" <<'EOF'
 [Groups/0]
 Name=Default
 Default Layout=us
-DefaultIM=pinyin
+DefaultIM=__DEFAULT_IM__
 
 [Groups/0/Items/0]
 Name=keyboard-us
 Layout=
 
 [Groups/0/Items/1]
-Name=pinyin
+Name=__DEFAULT_IM__
 Layout=
 
 [GroupOrder]
 0=Default
 EOF
+sed -i "s/__DEFAULT_IM__/$default_im/g" "$HOME/.config/fcitx5/profile"
 cat > "$HOME/.config/fcitx5/conf/pinyin.conf" <<'EOF'
 [Behavior]
 Simplified Chinese=True
 ShowShuangpinMode=False
+EOF
+cat > "$HOME/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
+patch:
+  schema_list:
+    - schema: pinyin_simp
+  menu/page_size: 7
+EOF
+cat > "$HOME/.local/share/fcitx5/rime/pinyin_simp.custom.yaml" <<'EOF'
+patch:
+  switches/@0/reset: 1
+  translator/enable_user_dict: true
+  translator/enable_sentence: true
+  translator/enable_completion: true
+  translator/enable_encoder: true
 EOF
 cat > "$HOME/.config/environment.d/90-tiny-fcitx.conf" <<'EOF'
 XMODIFIERS=@im=fcitx
@@ -667,22 +679,17 @@ export SDL_IM_MODULE=fcitx
 [ -x /usr/bin/fcitx5 ] && fcitx5 -d >/dev/null 2>&1 &
 EOF
 im-config -n fcitx5 >/dev/null 2>&1 || true
+fcitx5-remote -r >/dev/null 2>&1 || true
+[ "$default_im" = "rime" ] && (fcitx5-remote -r >/dev/null 2>&1 || true)
 ''' +
       tabletDesktopSetupCommand +
       r'''
 "$HOME/.local/bin/tiny-tablet-session-setup" || true
-echo '简体拼音输入法已安装。请退出并重新进入桌面，然后在桌面应用里按 Ctrl+空格 或 Ctrl+Shift 切换中英文。' ''';
-
-  static const String applyMediumDesktopScaleCommand =
-      tabletDesktopSetupCommand +
-      r'''
-"$HOME/.local/bin/tiny-tablet-session-setup" || true
-echo '已应用中等桌面放大。请退出并重新进入桌面；如果已经在桌面中，部分窗口可能需要重新打开。' ''';
+echo "简体中文输入法已安装并启用：$default_im。请退出并重新进入桌面，然后在桌面应用里按 Ctrl+空格 或 Ctrl+Shift 切换中英文。" ''';
 
   //默认快捷指令
   static const commands = [
-    {"name": "安装简体拼音输入法", "command": installSimplifiedChineseInputCommand},
-    {"name": "应用中等桌面放大", "command": applyMediumDesktopScaleCommand},
+    {"name": "安装现代简体输入法", "command": installSimplifiedChineseInputCommand},
     {
       "name": "检查更新并升级",
       "command":
@@ -766,6 +773,7 @@ rm /tmp/wps.deb""",
           "sudo apt update && sudo apt install -y gvfs && echo '安装完成, 重启软件即可使用回收站。'",
     },
     {"name": "清理包管理器缓存", "command": "sudo apt clean"},
+    {"name": "退出桌面", "command": "stopvnc"},
     {"name": "关机", "command": "stopvnc\nexit\nexit"},
     {"name": "???", "command": "timeout 8 cmatrix"},
   ];
@@ -773,12 +781,8 @@ rm /tmp/wps.deb""",
   //默认快捷指令，英文版本
   static const commands4En = [
     {
-      "name": "Install Simplified Pinyin",
+      "name": "Install Modern Simplified IME",
       "command": installSimplifiedChineseInputCommand,
-    },
-    {
-      "name": "Apply Medium Desktop Scale",
-      "command": applyMediumDesktopScaleCommand,
     },
     {
       "name": "Update Packages",
@@ -839,6 +843,7 @@ rm /tmp/wps.deb""",
           "sudo apt update && sudo apt install -y gvfs && echo 'Restart the app to use Recycle Bin.'",
     },
     {"name": "Clean Package Cache", "command": "sudo apt clean"},
+    {"name": "Exit Desktop", "command": "stopvnc"},
     {"name": "Power Off", "command": "stopvnc\nexit\nexit"},
     {"name": "???", "command": "timeout 8 cmatrix"},
   ];
@@ -1033,6 +1038,15 @@ class Workflow {
     await Util.setCurrentProp("commands", updated);
   }
 
+  static Future<void> removeShortcutCommands(Set<String> names) async {
+    final List commands = Util.getCurrentProp("commands") as List;
+    final updated =
+        commands.where((element) => !names.contains(element["name"])).toList();
+    if (updated.length != commands.length) {
+      await Util.setCurrentProp("commands", updated);
+    }
+  }
+
   static Future<void> grantPermissions() async {
     Permission.storage.request();
     //Permission.manageExternalStorage.request();
@@ -1209,19 +1223,30 @@ sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""";
 
     if (!G.prefs.containsKey("tabletInputDisplayMigrationV1")) {
       await G.prefs.setBool("useAvnc", true);
-      await G.prefs.setBool("avncResizeDesktop", false);
-      await G.prefs.setDouble("avncScaleFactor", 0.0);
       await G.prefs.setBool("isTerminalWriteEnabled", true);
       await G.prefs.setBool("isTerminalCommandsEnabled", true);
       await G.prefs.setBool("tabletInputDisplayMigrationV1", true);
     }
 
+    if (!G.prefs.containsKey("tabletAvncResizeMigrationV2")) {
+      await G.prefs.setBool("useAvnc", true);
+      await G.prefs.setBool("avncResizeDesktop", true);
+      await G.prefs.setDouble("avncScaleFactor", -0.35);
+      await G.prefs.setBool("tabletAvncResizeMigrationV2", true);
+    }
+
     appendPostCommand(D.tabletDesktopSetupCommand);
-    await ensureShortcutCommand("应用中等桌面放大", D.applyMediumDesktopScaleCommand);
-    await ensureShortcutCommand(
+    await removeShortcutCommands({
+      "应用中等桌面放大",
+      "Apply Medium Desktop Scale",
       "安装简体拼音输入法",
+      "Install Simplified Pinyin",
+    });
+    await ensureShortcutCommand(
+      "安装现代简体输入法",
       D.installSimplifiedChineseInputCommand,
     );
+    await ensureShortcutCommand("退出桌面", "stopvnc", insertFirst: false);
 
     //是否需要重新安装引导包?
     if (Util.getGlobal("reinstallBootstrap")) {

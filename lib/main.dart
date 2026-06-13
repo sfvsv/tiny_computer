@@ -2153,110 +2153,128 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _enterDesktop() {
+    Workflow.launchGUIBackend();
+    if (G.wasX11Enabled) {
+      Workflow.launchX11();
+    } else if (G.wasAvncEnabled) {
+      Workflow.launchAvnc();
+    } else {
+      Workflow.launchBrowser();
+    }
+  }
+
+  KeyEventResult _handleGlobalKey(FocusNode node, KeyEvent event) {
+    if (!isLoadingComplete || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.f12) {
+      _enterDesktop();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     G.homePageStateContext = context;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          isLoadingComplete ? Util.getCurrentProp("name") : widget.title,
-        ),
-        actions: [
-          Visibility(
-            visible: isLoadingComplete,
-            child: IconButton.filledTonal(
-              onPressed: () {
-                if (G.wasX11Enabled) {
-                  Workflow.launchX11();
-                } else if (G.wasAvncEnabled) {
-                  Workflow.launchAvnc();
-                } else {
-                  Workflow.launchBrowser();
-                }
-              },
-              icon: const Icon(Icons.play_arrow),
-              tooltip: AppLocalizations.of(context)!.enterGUI,
-            ),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleGlobalKey,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            isLoadingComplete ? Util.getCurrentProp("name") : widget.title,
           ),
-        ],
-      ),
-      body:
-          isLoadingComplete
-              ? ValueListenableBuilder(
-                valueListenable: G.pageIndex,
-                builder: (context, value, child) {
-                  return IndexedStack(
-                    index: G.pageIndex.value,
-                    children: const [
-                      TerminalPage(),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: AspectRatioMax1To1(
-                          child: Scrollbar(
-                            child: SingleChildScrollView(
-                              restorationId: "control-scroll",
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: FractionallySizedBox(
-                                      widthFactor: 0.4,
-                                      child: Image(
-                                        image: AssetImage("images/icon.png"),
-                                      ),
-                                    ),
-                                  ),
-                                  FastCommands(),
-                                  Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Card(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(8),
-                                        child: Column(
-                                          children: [
-                                            SettingPage(),
-                                            SizedBox.square(dimension: 8),
-                                            InfoPage(openFirstInfo: false),
-                                          ],
+          actions: [
+            Visibility(
+              visible: isLoadingComplete,
+              child: IconButton.filledTonal(
+                onPressed: _enterDesktop,
+                icon: const Icon(Icons.play_arrow),
+                tooltip: AppLocalizations.of(context)!.enterGUI,
+              ),
+            ),
+          ],
+        ),
+        body:
+            isLoadingComplete
+                ? ValueListenableBuilder(
+                  valueListenable: G.pageIndex,
+                  builder: (context, value, child) {
+                    return IndexedStack(
+                      index: G.pageIndex.value,
+                      children: const [
+                        TerminalPage(),
+                        Padding(
+                          padding: EdgeInsets.all(8),
+                          child: AspectRatioMax1To1(
+                            child: Scrollbar(
+                              child: SingleChildScrollView(
+                                restorationId: "control-scroll",
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: FractionallySizedBox(
+                                        widthFactor: 0.4,
+                                        child: Image(
+                                          image: AssetImage("images/icon.png"),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    FastCommands(),
+                                    Padding(
+                                      padding: EdgeInsets.all(8),
+                                      child: Card(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: Column(
+                                            children: [
+                                              SettingPage(),
+                                              SizedBox.square(dimension: 8),
+                                              InfoPage(openFirstInfo: false),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  );
+                      ],
+                    );
+                  },
+                )
+                : const LoadingPage(),
+        bottomNavigationBar: ValueListenableBuilder(
+          valueListenable: G.pageIndex,
+          builder: (context, value, child) {
+            return Visibility(
+              visible: isLoadingComplete,
+              child: NavigationBar(
+                selectedIndex: G.pageIndex.value,
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.monitor),
+                    label: AppLocalizations.of(context)!.terminal,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.video_settings),
+                    label: AppLocalizations.of(context)!.control,
+                  ),
+                ],
+                onDestinationSelected: (index) {
+                  G.pageIndex.value = index;
                 },
-              )
-              : const LoadingPage(),
-      bottomNavigationBar: ValueListenableBuilder(
-        valueListenable: G.pageIndex,
-        builder: (context, value, child) {
-          return Visibility(
-            visible: isLoadingComplete,
-            child: NavigationBar(
-              selectedIndex: G.pageIndex.value,
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(Icons.monitor),
-                  label: AppLocalizations.of(context)!.terminal,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.video_settings),
-                  label: AppLocalizations.of(context)!.control,
-                ),
-              ],
-              onDestinationSelected: (index) {
-                G.pageIndex.value = index;
-              },
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
