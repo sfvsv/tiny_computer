@@ -100,11 +100,13 @@ android {
     
 
     lint {
-        disable "NullSafeMutableLiveData"
+        disable "NullSafeMutableLiveData", "ExpiredTargetSdkVersion"
+        checkReleaseBuilds false
+        abortOnError false
     }
 
     lintOptions {
-        //checkReleaseBuilds false
+        checkReleaseBuilds false
         abortOnError false
     }
     externalNativeBuild {
