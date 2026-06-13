@@ -2136,7 +2136,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     D.androidChannel.setMethodCallHandler((call) async {
-      if (call.method == "onF12" && isLoadingComplete) {
+      if (call.method == "onF11" && isLoadingComplete) {
         _enterDesktop();
       }
     });
@@ -2173,7 +2173,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!isLoadingComplete || event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
-    if (event.logicalKey == LogicalKeyboardKey.f12) {
+    if (event.logicalKey == LogicalKeyboardKey.f11) {
       _enterDesktop();
       return KeyEventResult.handled;
     }

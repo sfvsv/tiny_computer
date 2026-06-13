@@ -15,7 +15,7 @@ class MainApplication : FlutterApplication() {
     override fun onCreate() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this@MainApplication)
-        registerActivityLifecycleCallbacks(F12ActivityCallbacks())
+        registerActivityLifecycleCallbacks(F11ActivityCallbacks())
     }
 
     override fun attachBaseContext(base: Context?) {
@@ -23,12 +23,12 @@ class MainApplication : FlutterApplication() {
         Reflection.unseal(base)
     }
 
-    private class F12ActivityCallbacks : Application.ActivityLifecycleCallbacks {
+    private class F11ActivityCallbacks : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: Activity) {
             val window = activity.window ?: return
             val current = window.callback ?: return
-            if (current is F12WindowCallback) return
-            window.callback = F12WindowCallback(activity, current)
+            if (current is F11WindowCallback) return
+            window.callback = F11WindowCallback(activity, current)
         }
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
@@ -39,14 +39,14 @@ class MainApplication : FlutterApplication() {
         override fun onActivityDestroyed(activity: Activity) {}
     }
 
-    private class F12WindowCallback(
+    private class F11WindowCallback(
         private val activity: Activity,
         private val base: Window.Callback,
     ) : Window.Callback by base {
         override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-            if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F12) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F11) {
                 if (activity is MainActivity) {
-                    activity.handleF12Key()
+                    activity.handleF11Key()
                 } else {
                     activity.finish()
                 }

@@ -45,15 +45,15 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F12) {
-            handleF12Key()
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_F11) {
+            handleF11Key()
             return true
         }
         return super.dispatchKeyEvent(event)
     }
 
-    fun handleF12Key() {
-        androidChannel?.invokeMethod("onF12", null)
+    fun handleF11Key() {
+        androidChannel?.invokeMethod("onF11", null)
     }
 
 }
