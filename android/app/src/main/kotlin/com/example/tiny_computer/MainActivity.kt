@@ -45,8 +45,8 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && isDesktopShortcut(event)) {
-            handleDesktopShortcut()
+        if (DesktopShortcutManager.shouldConsume(event)) {
+            DesktopShortcutManager.handleShortcutFrom(this)
             return true
         }
         return super.dispatchKeyEvent(event)
@@ -54,13 +54,6 @@ class MainActivity: FlutterActivity() {
 
     fun handleDesktopShortcut() {
         androidChannel?.invokeMethod("onDesktopShortcut", null)
-    }
-
-    private fun isDesktopShortcut(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_F11) return true
-        return event.isCtrlPressed &&
-            event.isAltPressed &&
-            event.keyCode == KeyEvent.KEYCODE_D
     }
 
 }

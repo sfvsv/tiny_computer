@@ -616,18 +616,14 @@ X-GNOME-Autostart-enabled=true
 EOF''';
 
   static const String installSimplifiedChineseInputCommand =
-      r'''echo '正在安装/启用现代简体中文输入法（Fcitx5 + Rime 简体拼音）...'
+      r'''echo '正在安装/启用稳定简体拼音输入法（Fcitx5 Chinese Addons）...'
 sudo dpkg --configure -a
 sudo apt update
-sudo apt install -y fcitx5 fcitx5-rime rime-data-pinyin-simp fcitx5-config-qt im-config dbus-x11 || sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt im-config dbus-x11
-sudo apt install -y rime-data-essay rime-data-prelude rime-data-luna-pinyin || true
+sudo apt install -y fcitx5 fcitx5-chinese-addons fcitx5-config-qt im-config dbus-x11
 sudo apt install -y fcitx5-frontend-gtk3 fcitx5-frontend-qt5 || true
 sudo apt install -y fcitx5-frontend-gtk4 || true
-mkdir -p "$HOME/.config/fcitx5/conf" "$HOME/.config/fcitx5/addon" "$HOME/.config/autostart" "$HOME/.config/environment.d" "$HOME/.local/share/fcitx5/rime"
-default_im=rime
-if ! [ -d /usr/share/rime-data ] && ! command -v rime_deployer >/dev/null 2>&1; then
-  default_im=pinyin
-fi
+mkdir -p "$HOME/.config/fcitx5/conf" "$HOME/.config/fcitx5/addon" "$HOME/.config/autostart" "$HOME/.config/environment.d"
+default_im=pinyin
 chmod u+w "$HOME/.config/fcitx5/profile" >/dev/null 2>&1 || true
 cat > "$HOME/.config/fcitx5/profile" <<'EOF'
 [Groups/0]
@@ -648,43 +644,15 @@ cat > "$HOME/.config/fcitx5/conf/pinyin.conf" <<'EOF'
 [Behavior]
 Simplified Chinese=True
 ShowShuangpinMode=False
+PageSize=7
+
+[Dictionary]
+Enabled=True
+UseChaizi=True
 EOF
 cat > "$HOME/.config/fcitx5/conf/classicui.conf" <<'EOF'
 [Behavior]
 UsePerScreenDPI=True
-EOF
-cat > "$HOME/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
-patch:
-  schema_list:
-    - schema: pinyin_simp
-    - schema: luna_pinyin_simp
-  menu/page_size: 7
-  ascii_composer/switch_key:
-    Shift_L: noop
-    Shift_R: noop
-    Control_L: noop
-    Control_R: noop
-    Caps_Lock: noop
-EOF
-cat > "$HOME/.local/share/fcitx5/rime/pinyin_simp.custom.yaml" <<'EOF'
-patch:
-  switches/@0/reset: 1
-  switches/@1/reset: 1
-  translator/enable_user_dict: true
-  translator/enable_sentence: true
-  translator/enable_completion: true
-  translator/enable_encoder: true
-  translator/enable_charset_filter: false
-  translator/contextual_suggestions: true
-EOF
-cat > "$HOME/.local/share/fcitx5/rime/luna_pinyin_simp.custom.yaml" <<'EOF'
-patch:
-  switches/@0/reset: 1
-  switches/@1/reset: 1
-  translator/enable_user_dict: true
-  translator/enable_sentence: true
-  translator/enable_completion: true
-  translator/enable_encoder: true
 EOF
 cat > "$HOME/.config/environment.d/90-tiny-fcitx.conf" <<'EOF'
 XMODIFIERS=@im=fcitx
@@ -702,16 +670,15 @@ EOF
 im-config -n fcitx5 >/dev/null 2>&1 || true
 pkill -x fcitx5 >/dev/null 2>&1 || true
 fcitx5-remote -r >/dev/null 2>&1 || true
-[ "$default_im" = "rime" ] && (rime_deployer --build "$HOME/.local/share/fcitx5/rime" /usr/share/rime-data "$HOME/.local/share/fcitx5/rime/build" >/dev/null 2>&1 || true)
 ''' +
       tabletDesktopSetupCommand +
       r'''
 "$HOME/.local/bin/tiny-tablet-session-setup" || true
-echo "简体中文输入法已安装并启用：$default_im。已移除默认英文键盘项，避免自动跳回英文。请退出并重新进入桌面。" ''';
+echo "稳定简体拼音输入法已安装并启用：$default_im。已移除默认英文键盘项，避免自动跳回英文。请退出并重新进入桌面。" ''';
 
   //默认快捷指令
   static const commands = [
-    {"name": "安装现代简体输入法", "command": installSimplifiedChineseInputCommand},
+    {"name": "安装稳定简体拼音", "command": installSimplifiedChineseInputCommand},
     {
       "name": "检查更新并升级",
       "command":
@@ -803,7 +770,7 @@ rm /tmp/wps.deb""",
   //默认快捷指令，英文版本
   static const commands4En = [
     {
-      "name": "Install Modern Simplified IME",
+      "name": "Install Stable Simplified Pinyin",
       "command": installSimplifiedChineseInputCommand,
     },
     {
@@ -1263,9 +1230,11 @@ sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""";
       "Apply Medium Desktop Scale",
       "安装简体拼音输入法",
       "Install Simplified Pinyin",
+      "安装现代简体输入法",
+      "Install Modern Simplified IME",
     });
     await ensureShortcutCommand(
-      "安装现代简体输入法",
+      "安装稳定简体拼音",
       D.installSimplifiedChineseInputCommand,
     );
     await ensureShortcutCommand("退出桌面", "stopvnc", insertFirst: false);
